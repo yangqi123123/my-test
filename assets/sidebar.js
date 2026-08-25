@@ -1,5 +1,5 @@
 /* Shared sidebar component.
-   - 一级菜单：客户管理/智能触达/展会活动/AI客户评级/数据分析/消息列表/系统管理（含展开/收起）
+   - 一级菜单：客户管理/智能触达/AI模型管理/展会活动/AI客户评级/数据分析/消息列表/系统管理（含展开/收起）
    - 二级菜单保持原顺序与结构
    - Highlights current item (aria-current="page")
 */
@@ -28,6 +28,7 @@
 
     "expo-events": { label: "展会活动", icon: "fa-calendar-days", href: `${base}pages/events/events.html` },
     "ai-rating": { label: "AI客户评级", icon: "fa-robot", href: `${base}pages/events/customer-scoring.html` },
+    "ai-model-management": { label: "AI模型管理", icon: "fa-microchip", href: `${base}pages/ai-model-management.html` },
 
     analytics: { label: "数据分析", icon: "fa-chart-column", href: `${base}pages/analytics/dashboard.html` },
     messages: { label: "消息列表", icon: "fa-bell", href: `${base}pages/messages/list.html` },
@@ -96,6 +97,7 @@
     "ai-rating",
     "analytics",
     "messages",
+    "ai-model-management",
     { type: "group", id: "system" },
   ];
 
@@ -136,6 +138,7 @@
     if (p.endsWith("/pages/outreach/records.html")) return "outreach-campaigns";
     if (p.endsWith("/pages/outreach/templates.html")) return "outreach-templates";
     if (p.endsWith("/pages/outreach/follow-frequency.html")) return "outreach-follow-frequency";
+    if (p.endsWith("/pages/ai-model-management.html")) return "ai-model-management";
     if (p.includes("/pages/sales/")) return "sales";
     if (p.endsWith("/pages/events/customer-scoring.html")) return "ai-rating";
     if (p.endsWith("/pages/events/events.html")) return "expo-events";
@@ -184,6 +187,8 @@
     if (key === "outreach-campaigns") return [crumb("智能触达", outreachRoot), crumb("触达活动", outreachGroup.children[0].href)];
     if (key === "outreach-templates") return [crumb("智能触达", outreachRoot), crumb("模板管理", outreachGroup.children[1].href)];
     if (key === "outreach-follow-frequency") return [crumb("智能触达", outreachRoot), crumb("跟进频率", outreachGroup.children[2].href)];
+
+    if (key === "ai-model-management") return [crumb("AI模型管理", items["ai-model-management"].href)];
 
     if (key === "expo-events") return [crumb("展会活动", items["expo-events"].href)];
     if (key === "ai-rating") return [crumb("AI客户评级", items["ai-rating"].href)];

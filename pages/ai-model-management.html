@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI模型管理 · 供应商配置</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../assets/tailwind-config.js"></script>
+    <script>
+      window.__APP_BASE = "../";
+      window.__ACTIVE_MENU = "ai-model-management";
+    </script>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      referrerpolicy="no-referrer"
+    />
+    <style>
+      .supplier-card {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+      }
+      .supplier-card[data-active="true"] {
+        border-color: rgba(255, 138, 0, 0.55);
+        box-shadow: 0 1px 2px rgba(29, 33, 41, 0.04), 0 8px 20px rgba(255, 138, 0, 0.08);
+      }
+      .supplier-logo {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(201, 205, 212, 0.6);
+        background: rgba(245, 247, 250, 0.9);
+        color: #4e5969;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .supplier-card[data-active="true"] .supplier-logo {
+        border-color: rgba(255, 138, 0, 0.3);
+        background: rgba(255, 138, 0, 0.1);
+        color: #b85f00;
+      }
+      .supplier-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .usage-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+        color: #86909c;
+        font-size: 12px;
+      }
+      .usage-row .usage-value {
+        color: #067a2a;
+        font-weight: 600;
+      }
+      .usage-refresh {
+        width: 26px;
+        height: 26px;
+        border: 1px solid rgba(201, 205, 212, 0.7);
+        border-radius: 6px;
+        background: #fff;
+        color: #86909c;
+      }
+      .usage-refresh:hover {
+        border-color: rgba(255, 138, 0, 0.65);
+        color: #b85f00;
+        background: rgba(255, 138, 0, 0.05);
+      }
+      .icon-action {
+        width: 34px;
+        height: 34px;
+        border: 1px solid rgba(201, 205, 212, 0.7);
+        border-radius: 8px;
+        background: #fff;
+        color: #4e5969;
+      }
+      .icon-action:hover {
+        border-color: rgba(255, 138, 0, 0.65);
+        color: #b85f00;
+        background: rgba(255, 138, 0, 0.05);
+      }
+      .icon-action.danger:hover {
+        border-color: rgba(245, 63, 63, 0.45);
+        color: #f53f3f;
+        background: rgba(245, 63, 63, 0.05);
+      }
+      .supplier-modal {
+        top: 5vh;
+        width: min(920px, calc(100vw - 48px));
+        max-width: 920px;
+        height: min(760px, 90vh);
+        overflow: hidden;
+        flex-direction: column;
+      }
+      .supplier-modal[data-open="true"] {
+        display: flex;
+      }
+      .supplier-modal-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .preset-item {
+        min-height: 58px;
+        padding: 10px 12px;
+        border: 1px solid rgba(201, 205, 212, 0.65);
+        border-radius: 8px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+      }
+      .preset-item:hover,
+      .preset-item[aria-selected="true"] {
+        border-color: rgba(255, 138, 0, 0.7);
+        background: rgba(255, 138, 0, 0.06);
+      }
+      .preset-item[aria-selected="true"] {
+        box-shadow: 0 0 0 2px rgba(255, 138, 0, 0.08);
+      }
+      .preset-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: rgba(245, 247, 250, 0.95);
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        color: #4e5969;
+        font-weight: 700;
+      }
+      .toast-wrap {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 1300;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .toast {
+        min-width: 300px;
+        max-width: 420px;
+      }
+      @media (max-width: 1500px) {
+        .supplier-card {
+          grid-template-columns: 48px minmax(0, 1fr);
+        }
+        .supplier-actions {
+          grid-column: 2;
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell min-h-screen flex">
+      <div data-sidebar-root></div>
+
+      <main class="flex-1 min-w-0">
+        <header class="h-14 bg-surface border-b border-[rgba(201,205,212,.7)] px-4 flex items-center">
+          <button
+            type="button"
+            class="w-9 h-9 rounded-lg hover:bg-[rgba(245,247,250,.9)] border border-[rgba(201,205,212,.6)]"
+            title="折叠侧边栏"
+            data-sidebar-toggle
+          >
+            <i class="fa-solid fa-bars text-muted"></i>
+          </button>
+        </header>
+
+        <div class="p-4 space-y-4">
+          <section class="bg-surface rounded-xl shadow-card border border-[rgba(201,205,212,.6)] p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div class="text-[16px] font-semibold">搜索查询</div>
+              <div class="flex gap-2">
+                <button id="btnSearch" type="button" class="h-9 px-5 rounded-lg bg-primary text-white text-[14px] font-semibold">搜索</button>
+                <button id="btnReset" type="button" class="h-9 px-5 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface text-[14px] font-semibold">重置</button>
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-12 gap-3 items-end">
+              <div class="col-span-12 lg:col-span-5">
+                <div class="text-[12px] text-muted mb-1">供应商名称</div>
+                <input id="qName" class="w-full h-9 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface px-3 text-[14px]" placeholder="请输入供应商名称" />
+              </div>
+              <div class="col-span-12 lg:col-span-3">
+                <div class="text-[12px] text-muted mb-1">供应商</div>
+                <select id="qPreset" class="w-full h-9 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface px-3 text-[14px]">
+                  <option value="">全部</option>
+                </select>
+              </div>
+              <div class="col-span-12 lg:col-span-4">
+                <div class="text-[12px] text-muted mb-1">状态</div>
+                <select id="qStatus" class="w-full h-9 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface px-3 text-[14px]">
+                  <option value="">全部</option>
+                  <option value="active">使用中</option>
+                  <option value="inactive">未启用</option>
+                  <option value="error">连接异常</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section class="bg-surface rounded-xl shadow-card border border-[rgba(201,205,212,.6)] p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="text-[16px] font-semibold">供应商列表</div>
+                <div class="text-[12px] text-muted mt-1">所有采集器统一使用“使用中”供应商配置的默认模型</div>
+              </div>
+              <button id="btnAddSupplier" type="button" class="h-9 px-3 rounded-lg bg-primary text-white text-[14px] font-semibold flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-plus"></i>
+                新增供应商
+              </button>
+            </div>
+
+            <div id="supplierList" class="mt-4 space-y-3"></div>
+            <div class="mt-3 text-[13px] text-muted">共 <span id="totalCount" class="text-text font-semibold">0</span> 条</div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="overlay" data-overlay="supplier-config" data-open="false"></div>
+    <div class="modal supplier-modal" data-modal="supplier-config" data-open="false" role="dialog" aria-modal="true" aria-labelledby="supplierModalTitle">
+      <div class="shrink-0 p-4 border-b border-[rgba(201,205,212,.7)] flex items-center justify-between">
+        <div>
+          <div id="supplierModalTitle" class="text-[16px] font-semibold">新增供应商</div>
+          <div id="supplierModalSubtitle" class="text-[12px] text-muted mt-1">填写模型服务信息并完成连接测试</div>
+        </div>
+        <button id="btnCloseSupplierModal" type="button" class="w-9 h-9 rounded-lg hover:bg-[rgba(245,247,250,.9)]" title="关闭" aria-label="关闭">
+          <i class="fa-solid fa-xmark text-muted"></i>
+        </button>
+      </div>
+
+      <div id="supplierFormView" class="supplier-modal-body p-6 space-y-4">
+        <input id="editId" type="hidden" />
+        <input id="selectedPreset" type="hidden" />
+
+        <div class="grid grid-cols-12 gap-4">
+          <div class="col-span-6">
+            <div class="text-[12px] text-muted mb-1"><span class="text-[#F53F3F]">*</span> 供应商名称</div>
+            <input id="supplierName" class="w-full h-10 rounded-lg border border-[rgba(201,205,212,.7)] px-3 text-[14px]" placeholder="例如：公司专用 API" />
+          </div>
+          <div class="col-span-6">
+            <div class="text-[12px] text-muted mb-1"><span class="text-[#F53F3F]">*</span> 选择供应商</div>
+            <button id="btnChoosePreset" type="button" class="w-full min-h-10 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface px-3 text-left flex items-center justify-between hover:border-primary">
+              <span class="flex items-center gap-2 min-w-0">
+                <span id="selectedPresetIcon" class="w-7 h-7 rounded-lg bg-[rgba(245,247,250,.95)] flex items-center justify-center text-muted font-semibold">?</span>
+                <span id="selectedPresetLabel" class="text-[14px] text-muted truncate">请选择供应商</span>
+              </span>
+              <i class="fa-solid fa-chevron-right text-[11px] text-muted"></i>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[12px] text-muted mb-1">官网链接</div>
+          <input id="websiteUrl" class="w-full h-10 rounded-lg border border-[rgba(201,205,212,.7)] px-3 text-[14px]" placeholder="请输入供应商官网链接" />
+          <div class="text-[12px] text-muted mt-1">选择预设供应商后自动带出，可按实际情况修改。</div>
+        </div>
+
+        <div>
+          <div class="text-[12px] text-muted mb-1"><span class="text-[#F53F3F]">*</span> API Key</div>
+          <div class="relative">
+            <input id="apiKey" type="password" class="w-full h-10 rounded-lg border border-[rgba(201,205,212,.7)] px-3 pr-11 text-[14px]" placeholder="请输入 API Key" autocomplete="new-password" />
+            <button id="btnToggleKey" type="button" class="absolute right-1 top-1 w-8 h-8 rounded-lg hover:bg-[rgba(245,247,250,.9)]" title="显示或隐藏 API Key" aria-label="显示或隐藏 API Key">
+              <i class="fa-regular fa-eye text-muted"></i>
+            </button>
+          </div>
+          <div class="text-[12px] text-muted mt-1">API Key 仅用于后台调用，列表中不会显示。</div>
+        </div>
+
+        <div>
+          <div class="text-[12px] text-muted mb-1"><span class="text-[#F53F3F]">*</span> API 请求地址</div>
+          <input id="baseUrl" class="w-full h-10 rounded-lg border border-[rgba(201,205,212,.7)] px-3 text-[14px]" placeholder="请输入兼容服务端点地址" />
+          <div class="text-[12px] text-muted mt-1">选择预设供应商后自动带出推荐地址，可按实际服务地址修改。</div>
+        </div>
+
+        <div>
+          <div class="text-[12px] text-muted mb-1"><span class="text-[#F53F3F]">*</span> 默认模型</div>
+          <div class="grid grid-cols-12 gap-2">
+            <div class="col-span-9">
+              <input id="defaultModel" list="modelOptions" class="w-full h-10 rounded-lg border border-[rgba(201,205,212,.7)] px-3 text-[14px]" placeholder="请输入或选择模型 ID" />
+              <datalist id="modelOptions"></datalist>
+            </div>
+            <div class="col-span-3">
+              <button id="btnFetchModels" type="button" class="w-full h-10 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface text-[14px] font-semibold">
+                <i class="fa-solid fa-download mr-2 text-muted"></i>获取模型列表
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[12px] text-muted mb-1">备注</div>
+          <textarea id="remark" rows="3" class="w-full rounded-xl border border-[rgba(201,205,212,.7)] p-3 text-[14px]" placeholder="选填"></textarea>
+        </div>
+      </div>
+
+      <div id="presetPickerView" class="supplier-modal-body p-6 hidden">
+        <div class="flex items-center justify-between gap-3">
+          <button id="btnBackToForm" type="button" class="h-9 px-3 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface text-[14px] font-semibold">
+            <i class="fa-solid fa-arrow-left mr-2"></i>返回配置
+          </button>
+          <div class="relative w-[320px]">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[12px]"></i>
+            <input id="presetSearch" class="w-full h-9 rounded-lg border border-[rgba(201,205,212,.7)] pl-9 pr-3 text-[14px]" placeholder="搜索供应商" />
+          </div>
+        </div>
+        <div class="mt-4 text-[14px] font-semibold">预设供应商</div>
+        <div id="presetGrid" class="preset-grid mt-3"></div>
+      </div>
+
+      <div id="supplierModalFooter" class="shrink-0 p-4 border-t border-[rgba(201,205,212,.7)] flex items-center justify-between bg-surface">
+        <div class="flex items-center gap-3">
+          <button id="btnTestForm" type="button" class="h-10 px-4 rounded-lg border border-[rgba(255,138,0,.55)] bg-surface text-[#B85F00] text-[14px] font-semibold">
+            <i class="fa-solid fa-bolt mr-2"></i>连接测试
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button id="btnCancelSupplier" type="button" class="h-10 px-5 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface text-[14px] font-semibold">取消</button>
+          <button id="btnSaveSupplier" type="button" class="h-10 px-6 rounded-lg bg-primary text-white text-[14px] font-semibold">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" data-overlay="supplier-delete" data-open="false"></div>
+    <div class="modal" data-modal="supplier-delete" data-open="false" style="max-width: 460px; width: min(460px, 96vw)" role="dialog" aria-modal="true">
+      <div class="p-4 border-b border-[rgba(201,205,212,.7)] flex items-center justify-between">
+        <div class="text-[16px] font-semibold">删除供应商</div>
+        <button type="button" class="w-9 h-9 rounded-lg hover:bg-[rgba(245,247,250,.9)]" data-close="supplier-delete" title="关闭">
+          <i class="fa-solid fa-xmark text-muted"></i>
+        </button>
+      </div>
+      <div class="p-4">
+        <p class="text-[14px] text-muted">确认删除供应商“<span id="deleteSupplierName" class="text-text font-semibold"></span>”？删除后无法恢复。</p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" class="h-9 px-4 rounded-lg border border-[rgba(201,205,212,.7)] bg-surface text-[14px] font-semibold" data-close="supplier-delete">取消</button>
+          <button id="btnConfirmDelete" type="button" class="h-9 px-4 rounded-lg bg-[#F53F3F] text-white text-[14px] font-semibold">确认删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toasts" class="toast-wrap"></div>
+
+    <script src="../assets/sidebar.js"></script>
+    <script src="../assets/app.js"></script>
+    <script>
+      (function () {
+        const STORAGE_KEY = "ai_model_suppliers_v1";
+
+        const presets = [
+          { id: "custom", name: "自定义配置", mark: "自", website: "", baseUrl: "", models: [] },
+          { id: "openai", name: "OpenAI Official", mark: "O", website: "https://openai.com", baseUrl: "https://api.openai.com/v1", models: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"] },
+          { id: "kimi", name: "Kimi", mark: "K", website: "https://www.moonshot.cn", baseUrl: "https://api.moonshot.cn/v1", models: ["kimi-k2", "moonshot-v1-auto"] },
+          { id: "kimi-coding", name: "Kimi For Coding", mark: "KC", baseUrl: "", models: [] },
+          { id: "packycode", name: "PackyCode", mark: "P", baseUrl: "", models: [] },
+          { id: "zetaapi", name: "ZetaAPI", mark: "Z", baseUrl: "", models: [] },
+          { id: "apinebula", name: "APINebula", mark: "AN", baseUrl: "", models: [] },
+          { id: "aicodemirror", name: "AICodeMirror", mark: "AM", baseUrl: "", models: [] },
+          { id: "pateway", name: "PatewayAI", mark: "P", baseUrl: "", models: [] },
+          { id: "fenno", name: "FennoAI", mark: "F", baseUrl: "", models: [] },
+          { id: "runapi", name: "RunAPI", mark: "R", baseUrl: "", models: [] },
+          { id: "unity", name: "Unity2.ai", mark: "U", baseUrl: "", models: [] },
+          { id: "shengsuanyun", name: "胜算云", mark: "胜", baseUrl: "", models: [] },
+          { id: "aigocode", name: "AIGoCode", mark: "AG", baseUrl: "", models: [] },
+          { id: "subrouter", name: "SubRouter", mark: "S", baseUrl: "", models: [] },
+          { id: "apikeyfun", name: "APIKEY.FUN", mark: "AK", baseUrl: "", models: [] },
+          { id: "code0", name: "Code0", mark: "C", baseUrl: "", models: [] },
+          { id: "teamorouter", name: "TeamoRouter", mark: "T", baseUrl: "", models: [] },
+          { id: "claudecn", name: "ClaudeCN", mark: "C", baseUrl: "", models: [] },
+          { id: "volcengine", name: "火山引擎", mark: "火", baseUrl: "", models: [] },
+          { id: "byteplus", name: "BytePlus", mark: "B", baseUrl: "", models: [] },
+          { id: "doubao", name: "DouBaoSeed", mark: "豆", baseUrl: "", models: [] },
+          { id: "siliconflow", name: "SiliconFlow", mark: "S", website: "https://siliconflow.cn", baseUrl: "https://api.siliconflow.cn/v1", models: [] },
+          { id: "siliconflow-en", name: "SiliconFlow en", mark: "SE", baseUrl: "", models: [] },
+          { id: "azure", name: "Azure OpenAI", mark: "A", baseUrl: "", models: [] },
+          { id: "baidu", name: "Baidu Qianfan", mark: "百", baseUrl: "", models: [] },
+          { id: "bailian", name: "阿里百炼", mark: "百", baseUrl: "", models: [] },
+          { id: "deepseek", name: "DeepSeek", mark: "D", website: "https://www.deepseek.com", baseUrl: "https://api.deepseek.com/v1", models: ["deepseek-chat", "deepseek-reasoner"] },
+          { id: "minimax", name: "MiniMax", mark: "M", baseUrl: "", models: [] },
+          { id: "modelscope", name: "ModelScope", mark: "MS", baseUrl: "", models: [] },
+          { id: "nvidia", name: "Nvidia", mark: "N", baseUrl: "", models: [] },
+          { id: "openrouter", name: "OpenRouter", mark: "OR", website: "https://openrouter.ai", baseUrl: "https://openrouter.ai/api/v1", models: [] },
+          { id: "stepfun", name: "StepFun", mark: "S", baseUrl: "", models: [] },
+          { id: "xai", name: "xAI (Grok)", mark: "x", website: "https://x.ai", baseUrl: "https://api.x.ai/v1", models: [] },
+          { id: "zhipu", name: "Zhipu GLM", mark: "智", baseUrl: "", models: [] },
+          { id: "anthropic", name: "Anthropic", mark: "A", website: "https://www.anthropic.com", baseUrl: "https://api.anthropic.com", models: [] },
+          { id: "gemini", name: "Google Gemini", mark: "G", website: "https://gemini.google.com", baseUrl: "", models: [] }
+        ];
+
+        const seedRows = [
+          {
+            id: "provider_openai_prod",
+            name: "OpenAI 正式环境",
+            presetId: "openai",
+            website: "https://openai.com",
+            apiKey: "sk-prototype-openai",
+            baseUrl: "https://api.openai.com/v1",
+            model: "gpt-5.6-sol",
+            remark: "采集任务默认模型",
+            active: true,
+            testStatus: "passed",
+            lastTest: "2026-08-24 16:20:08",
+            usage: { remaining: "4.07", unit: "USD", detail: "mode=subscription, status=active", updatedAt: "2026-08-24T08:19:08.000Z" }
+          },
+          {
+            id: "provider_company_api",
+            name: "公司专用 API",
+            presetId: "custom",
+            website: "",
+            apiKey: "sk-prototype-company",
+            baseUrl: "https://api.example.com/v1",
+            model: "company-agent-model",
+            remark: "公司统一代理服务",
+            active: false,
+            testStatus: "passed",
+            lastTest: "2026-08-23 11:05:32",
+            usage: { remaining: "23.63", unit: "USD", detail: "mode=subscription, status=active", updatedAt: "2026-08-24T08:05:32.000Z" }
+          },
+          {
+            id: "provider_deepseek_backup",
+            name: "DeepSeek 备用环境",
+            presetId: "deepseek",
+            website: "https://www.deepseek.com",
+            apiKey: "sk-prototype-deepseek",
+            baseUrl: "https://api.deepseek.com/v1",
+            model: "deepseek-chat",
+            remark: "备用模型服务",
+            active: false,
+            testStatus: "untested",
+            lastTest: "",
+            usage: { remaining: "8.56", unit: "USD", detail: "mode=subscription, status=active", updatedAt: "2026-08-24T07:42:16.000Z" }
+          }
+        ];
+
+        const els = {
+          list: document.getElementById("supplierList"),
+          total: document.getElementById("totalCount"),
+          qName: document.getElementById("qName"),
+          qPreset: document.getElementById("qPreset"),
+          qStatus: document.getElementById("qStatus"),
+          modalTitle: document.getElementById("supplierModalTitle"),
+          modalSubtitle: document.getElementById("supplierModalSubtitle"),
+          formView: document.getElementById("supplierFormView"),
+          pickerView: document.getElementById("presetPickerView"),
+          modalFooter: document.getElementById("supplierModalFooter"),
+          editId: document.getElementById("editId"),
+          selectedPreset: document.getElementById("selectedPreset"),
+          selectedPresetIcon: document.getElementById("selectedPresetIcon"),
+          selectedPresetLabel: document.getElementById("selectedPresetLabel"),
+          supplierName: document.getElementById("supplierName"),
+          websiteUrl: document.getElementById("websiteUrl"),
+          apiKey: document.getElementById("apiKey"),
+          baseUrl: document.getElementById("baseUrl"),
+          defaultModel: document.getElementById("defaultModel"),
+          modelOptions: document.getElementById("modelOptions"),
+          remark: document.getElementById("remark"),
+          presetSearch: document.getElementById("presetSearch"),
+          presetGrid: document.getElementById("presetGrid"),
+          deleteName: document.getElementById("deleteSupplierName"),
+          toasts: document.getElementById("toasts")
+        };
+
+        let rows = loadRows();
+        let pendingDeleteId = null;
+        let formTestPassed = false;
+
+        function uid() {
+          return "provider_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        }
+
+        function escapeHtml(value) {
+          return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+        }
+
+        function presetById(id) {
+          return presets.find((item) => item.id === id) || presets[0];
+        }
+
+        function normalizeRow(row) {
+          const provider = presetById(row.presetId);
+          const usage = row.usage && typeof row.usage === "object" ? row.usage : {};
+          const remaining = String(usage.remaining ?? "").trim();
+          const detail = String(usage.detail ?? "").trim();
+          return {
+            ...row,
+            website: row.website ?? provider.website ?? "",
+            usage: {
+              remaining: remaining && remaining !== "—" ? remaining : "12.00",
+              unit: String(usage.unit ?? "").trim() || "USD",
+              detail: detail && !["暂无用量数据", "未接入用量接口"].includes(detail) ? detail : "mode=subscription, status=active",
+              updatedAt: usage.updatedAt || new Date().toISOString()
+            }
+          };
+        }
+
+        function loadRows() {
+          try {
+            const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+            if (Array.isArray(parsed) && parsed.length) return parsed.map(normalizeRow);
+          } catch (_) {}
+          return seedRows.map(normalizeRow);
+        }
+
+        function saveRows() {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+        }
+
+        function nowText() {
+          const d = new Date();
+          const pad = (n) => String(n).padStart(2, "0");
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
+        function setModalOpen(id, open) {
+          const overlay = document.querySelector(`[data-overlay="${id}"]`);
+          const modal = document.querySelector(`[data-modal="${id}"]`);
+          if (overlay) overlay.dataset.open = open ? "true" : "false";
+          if (modal) modal.dataset.open = open ? "true" : "false";
+        }
+
+        function toast(type, title, desc) {
+          const color = type === "success" ? "rgba(0,180,42,.10)" : type === "error" ? "rgba(245,63,63,.10)" : "rgba(255,138,0,.10)";
+          const border = type === "success" ? "rgba(0,180,42,.25)" : type === "error" ? "rgba(245,63,63,.25)" : "rgba(255,138,0,.28)";
+          const icon = type === "success" ? "fa-circle-check" : type === "error" ? "fa-circle-xmark" : "fa-circle-info";
+          const item = document.createElement("div");
+          item.className = "toast rounded-xl border bg-surface shadow-card p-3 flex gap-3";
+          item.style.background = color;
+          item.style.borderColor = border;
+          item.innerHTML = `<i class="fa-solid ${icon} mt-0.5"></i><div><div class="text-[14px] font-semibold">${escapeHtml(title)}</div><div class="text-[12px] text-text font-medium mt-1">${escapeHtml(desc)}</div></div>`;
+          els.toasts.appendChild(item);
+          setTimeout(() => item.remove(), 2600);
+        }
+
+        function usageTimeLabel(value) {
+          if (!value) return "未刷新";
+          const time = new Date(value).getTime();
+          if (!Number.isFinite(time)) return escapeHtml(String(value));
+          const diff = Math.max(0, Date.now() - time);
+          if (diff < 60 * 1000) return "刚刚";
+          if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}分钟前`;
+          if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}小时前`;
+          const date = new Date(time);
+          const pad = (n) => String(n).padStart(2, "0");
+          return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        }
+
+        function usageLabel(row) {
+          const usage = row.usage || {};
+          const remaining = String(usage.remaining ?? "12.00");
+          const unit = String(usage.unit ?? "USD");
+          const detail = String(usage.detail ?? "mode=subscription, status=active");
+          return `
+            <div class="usage-row">
+              <span>剩余用量：</span>
+              <span class="usage-value">${escapeHtml(remaining)}</span>
+              ${unit ? `<span>${escapeHtml(unit)}</span>` : ""}
+              <span class="truncate max-w-[260px]" title="${escapeHtml(detail)}">${escapeHtml(detail)}</span>
+              <span class="ml-1">刷新时间：${usageTimeLabel(usage.updatedAt)}</span>
+              <button type="button" class="usage-refresh" data-action="refresh-usage" data-id="${escapeHtml(row.id)}" title="刷新剩余用量" aria-label="刷新剩余用量"><i class="fa-solid fa-rotate"></i></button>
+            </div>`;
+        }
+
+        function filteredRows() {
+          const name = els.qName.value.trim().toLowerCase();
+          const preset = els.qPreset.value;
+          const status = els.qStatus.value;
+          return rows.filter((row) => {
+            const provider = presetById(row.presetId);
+            if (name && !`${row.name} ${provider.name} ${row.model}`.toLowerCase().includes(name)) return false;
+            if (preset && row.presetId !== preset) return false;
+            if (status === "active" && !row.active) return false;
+            if (status === "inactive" && row.active) return false;
+            if (status === "error" && row.testStatus !== "failed") return false;
+            return true;
+          });
+        }
+
+        function renderList() {
+          const filtered = filteredRows();
+          els.total.textContent = String(filtered.length);
+          if (!filtered.length) {
+            els.list.innerHTML = `
+              <div class="py-14 text-center border border-dashed border-[rgba(201,205,212,.8)] rounded-xl">
+                <i class="fa-solid fa-cubes-stacked text-[30px] text-muted"></i>
+                <div class="mt-3 text-[14px] font-semibold">暂无符合条件的供应商</div>
+                <div class="text-[12px] text-muted mt-1">调整搜索条件或新增供应商配置</div>
+              </div>`;
+            return;
+          }
+          els.list.innerHTML = filtered
+            .map((row) => {
+              const provider = presetById(row.presetId);
+              return `
+                <article class="supplier-card rounded-xl border border-[rgba(201,205,212,.6)] bg-surface p-4" data-active="${row.active ? "true" : "false"}">
+                  <div class="supplier-logo">${escapeHtml(provider.mark)}</div>
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <div class="text-[15px] font-semibold truncate">${escapeHtml(row.name)}</div>
+                      <span class="chip ${row.active ? "chip--primary" : ""}">${escapeHtml(provider.name)}</span>
+                    </div>
+                    <div class="text-[13px] text-muted mt-1.5 truncate" title="${escapeHtml(row.baseUrl)}">${escapeHtml(row.baseUrl)} · ${escapeHtml(row.model)}</div>
+                    ${usageLabel(row)}
+                  </div>
+                  <div class="supplier-actions">
+                    ${
+                      row.active
+                        ? '<button type="button" class="h-[34px] px-3 rounded-lg border border-[rgba(0,180,42,.25)] bg-[rgba(0,180,42,.10)] text-[#067A2A] text-[13px] font-semibold" disabled><i class="fa-solid fa-check mr-1.5"></i>使用中</button>'
+                        : `<button type="button" class="h-[34px] px-3 rounded-lg bg-primary text-white text-[13px] font-semibold" data-action="activate" data-id="${row.id}">启用</button>`
+                    }
+                    <button type="button" class="icon-action" data-action="edit" data-id="${row.id}" title="编辑" aria-label="编辑"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="icon-action" data-action="copy" data-id="${row.id}" title="复制" aria-label="复制"><i class="fa-regular fa-copy"></i></button>
+                    <button type="button" class="icon-action" data-action="test" data-id="${row.id}" title="连接测试" aria-label="连接测试"><i class="fa-solid fa-wave-square"></i></button>
+                    <button type="button" class="icon-action danger" data-action="delete" data-id="${row.id}" title="删除" aria-label="删除" ${row.active ? "disabled" : ""}><i class="fa-regular fa-trash-can"></i></button>
+                  </div>
+                </article>`;
+            })
+            .join("");
+        }
+
+        function syncSelectedPreset(presetId) {
+          const preset = presetById(presetId);
+          els.selectedPreset.value = preset.id;
+          els.selectedPresetIcon.textContent = preset.mark;
+          els.selectedPresetLabel.textContent = preset.name;
+          els.selectedPresetLabel.classList.remove("text-muted");
+          renderPresetGrid();
+        }
+
+        function showFormView() {
+          els.formView.classList.remove("hidden");
+          els.pickerView.classList.add("hidden");
+          els.modalFooter.classList.remove("hidden");
+          els.modalSubtitle.textContent = "填写模型服务信息并完成连接测试";
+        }
+
+        function showPickerView() {
+          els.formView.classList.add("hidden");
+          els.pickerView.classList.remove("hidden");
+          els.modalFooter.classList.add("hidden");
+          els.modalSubtitle.textContent = "选择预设供应商或使用自定义配置";
+          els.presetSearch.value = "";
+          renderPresetGrid();
+          els.presetSearch.focus();
+        }
+
+        function resetForm() {
+          els.editId.value = "";
+          els.supplierName.value = "";
+          els.apiKey.value = "";
+          els.apiKey.type = "password";
+          els.websiteUrl.value = "";
+          els.baseUrl.value = "";
+          els.defaultModel.value = "";
+          els.modelOptions.innerHTML = "";
+          els.remark.value = "";
+          els.selectedPreset.value = "";
+          els.selectedPresetIcon.textContent = "?";
+          els.selectedPresetLabel.textContent = "请选择供应商";
+          els.selectedPresetLabel.classList.add("text-muted");
+          formTestPassed = false;
+          showFormView();
+        }
+
+        function openConfig(row) {
+          resetForm();
+          if (row) {
+            els.modalTitle.textContent = "编辑供应商";
+            els.editId.value = row.id;
+            els.supplierName.value = row.name;
+            els.websiteUrl.value = row.website || "";
+            els.apiKey.value = row.apiKey || "";
+            els.baseUrl.value = row.baseUrl;
+            els.defaultModel.value = row.model;
+            els.remark.value = row.remark || "";
+            syncSelectedPreset(row.presetId);
+            formTestPassed = row.testStatus === "passed";
+          } else {
+            els.modalTitle.textContent = "新增供应商";
+          }
+          setModalOpen("supplier-config", true);
+          setTimeout(() => els.supplierName.focus(), 0);
+        }
+
+        function closeConfig() {
+          setModalOpen("supplier-config", false);
+          resetForm();
+        }
+
+        function renderPresetGrid() {
+          const keyword = els.presetSearch.value.trim().toLowerCase();
+          const selected = els.selectedPreset.value;
+          const filtered = presets.filter((item) => !keyword || item.name.toLowerCase().includes(keyword));
+          els.presetGrid.innerHTML = filtered.length
+            ? filtered
+                .map(
+                  (item) => `
+                    <button type="button" class="preset-item" data-preset-id="${item.id}" aria-selected="${selected === item.id ? "true" : "false"}">
+                      <span class="preset-icon">${escapeHtml(item.mark)}</span>
+                      <span class="min-w-0"><span class="block text-[13px] font-semibold truncate">${escapeHtml(item.name)}</span><span class="block text-[11px] text-muted mt-0.5">${item.id === "custom" ? "手动填写接口信息" : "预设供应商"}</span></span>
+                    </button>`
+                )
+                .join("")
+            : '<div class="col-span-4 py-12 text-center text-[13px] text-muted">未找到匹配的供应商</div>';
+        }
+
+        function choosePreset(presetId) {
+          const preset = presetById(presetId);
+          syncSelectedPreset(preset.id);
+          if (preset.website) els.websiteUrl.value = preset.website;
+          if (preset.baseUrl) els.baseUrl.value = preset.baseUrl;
+          if (preset.models.length) {
+            els.defaultModel.value = preset.models[0];
+            els.modelOptions.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
+          } else if (preset.id !== "custom") {
+            els.defaultModel.value = "";
+            els.modelOptions.innerHTML = "";
+          }
+          formTestPassed = false;
+          showFormView();
+        }
+
+        function validateForm() {
+          const required = [
+            [els.supplierName, "请输入供应商名称"],
+            [els.selectedPreset, "请选择供应商"],
+            [els.apiKey, "请输入 API Key"],
+            [els.baseUrl, "请输入 API 请求地址"],
+            [els.defaultModel, "请输入默认模型"]
+          ];
+          for (const [input, message] of required) {
+            if (!String(input.value || "").trim()) {
+              toast("error", "信息不完整", message);
+              if (input !== els.selectedPreset) input.focus();
+              else showPickerView();
+              return false;
+            }
+          }
+          try {
+            const url = new URL(els.baseUrl.value.trim());
+            if (!/^https?:$/.test(url.protocol)) throw new Error("invalid protocol");
+          } catch (_) {
+            toast("error", "地址格式错误", "API 请求地址必须是有效的 HTTP 或 HTTPS 地址");
+            els.baseUrl.focus();
+            return false;
+          }
+          if (els.websiteUrl.value.trim()) {
+            try {
+              const website = new URL(els.websiteUrl.value.trim());
+              if (!/^https?:$/.test(website.protocol)) throw new Error("invalid protocol");
+            } catch (_) {
+              toast("error", "官网链接格式错误", "官网链接必须是有效的 HTTP 或 HTTPS 地址");
+              els.websiteUrl.focus();
+              return false;
+            }
+          }
+          return true;
+        }
+
+        function setButtonLoading(button, loading, text) {
+          if (!button.dataset.originalHtml) button.dataset.originalHtml = button.innerHTML;
+          button.disabled = loading;
+          button.innerHTML = loading ? `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${text}` : button.dataset.originalHtml;
+        }
+
+        function testFormConnection() {
+          if (!validateForm()) return;
+          const button = document.getElementById("btnTestForm");
+          setButtonLoading(button, true, "检测中...");
+          setTimeout(() => {
+            setButtonLoading(button, false);
+            formTestPassed = true;
+            toast("success", "连接成功", "鉴权、接口地址与默认模型检测通过");
+          }, 700);
+        }
+
+        function fetchModels() {
+          if (!els.selectedPreset.value || !els.apiKey.value.trim() || !els.baseUrl.value.trim()) {
+            toast("error", "无法获取模型", "请先选择供应商并填写 API Key、API 请求地址");
+            return;
+          }
+          const button = document.getElementById("btnFetchModels");
+          setButtonLoading(button, true, "获取中...");
+          setTimeout(() => {
+            setButtonLoading(button, false);
+            const preset = presetById(els.selectedPreset.value);
+            const models = preset.models.length ? preset.models : [els.defaultModel.value.trim() || "agent-default-model"];
+            els.modelOptions.innerHTML = models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
+            if (!els.defaultModel.value.trim()) els.defaultModel.value = models[0];
+            toast("success", "获取成功", `已获取 ${models.length} 个可用模型`);
+          }, 650);
+        }
+
+        function saveForm() {
+          if (!validateForm()) return;
+          const id = els.editId.value;
+          const existing = rows.find((row) => row.id === id);
+          const next = {
+            id: id || uid(),
+            name: els.supplierName.value.trim(),
+            presetId: els.selectedPreset.value,
+            website: els.websiteUrl.value.trim(),
+            apiKey: els.apiKey.value.trim(),
+            baseUrl: els.baseUrl.value.trim().replace(/\/$/, ""),
+            model: els.defaultModel.value.trim(),
+            remark: els.remark.value.trim(),
+            active: existing ? Boolean(existing.active) : false,
+            testStatus: formTestPassed ? "passed" : "untested",
+            lastTest: formTestPassed ? nowText() : "",
+            usage: existing?.usage || { remaining: "12.00", unit: "USD", detail: "mode=subscription, status=active", updatedAt: new Date().toISOString() }
+          };
+          if (existing) rows = rows.map((row) => (row.id === id ? next : row));
+          else rows.unshift(next);
+          saveRows();
+          renderList();
+          closeConfig();
+          toast("success", existing ? "保存成功" : "新增成功", formTestPassed ? "供应商配置已保存，连接状态正常" : "供应商配置已保存，启用前请完成连接测试");
+        }
+
+        function testRow(id, button) {
+          const row = rows.find((item) => item.id === id);
+          if (!row) return;
+          setButtonLoading(button, true, "");
+          setTimeout(() => {
+            row.testStatus = "passed";
+            row.lastTest = nowText();
+            saveRows();
+            renderList();
+            toast("success", "连接成功", `${row.name} 已通过连接测试`);
+          }, 700);
+        }
+
+        function refreshUsage(id, button) {
+          const row = rows.find((item) => item.id === id);
+          if (!row) return;
+          button.disabled = true;
+          button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+          setTimeout(() => {
+            row.usage = {
+              ...(row.usage || {}),
+              remaining: row.usage?.remaining && row.usage.remaining !== "—" ? row.usage.remaining : "12.00",
+              unit: row.usage?.unit || "USD",
+              updatedAt: new Date().toISOString(),
+              detail: "mode=subscription, status=active"
+            };
+            saveRows();
+            renderList();
+            toast("success", "用量已刷新", `${row.name} 的剩余用量信息已更新`);
+          }, 600);
+        }
+
+        function activateRow(id) {
+          const row = rows.find((item) => item.id === id);
+          if (!row) return;
+          if (row.testStatus !== "passed") {
+            toast("error", "暂不能启用", "请先完成连接测试并确保状态正常");
+            return;
+          }
+          rows = rows.map((item) => ({ ...item, active: item.id === id }));
+          saveRows();
+          renderList();
+          toast("success", "切换成功", `所有新建采集任务将使用 ${row.name} · ${row.model}`);
+        }
+
+        function copyRow(id) {
+          const row = rows.find((item) => item.id === id);
+          if (!row) return;
+          rows.unshift({
+            ...row,
+            id: uid(),
+            name: `${row.name} copy`,
+            active: false,
+            testStatus: "untested",
+            lastTest: "",
+            usage: { remaining: "12.00", unit: "USD", detail: "mode=subscription, status=active", updatedAt: new Date().toISOString() }
+          });
+          saveRows();
+          renderList();
+          toast("success", "复制成功", "已生成一份未启用的供应商配置副本");
+        }
+
+        function requestDelete(id) {
+          const row = rows.find((item) => item.id === id);
+          if (!row) return;
+          if (row.active) {
+            toast("error", "无法删除", "正在使用的供应商不能删除，请先启用其他供应商");
+            return;
+          }
+          pendingDeleteId = id;
+          els.deleteName.textContent = row.name;
+          setModalOpen("supplier-delete", true);
+        }
+
+        presets.forEach((preset) => {
+          const option = document.createElement("option");
+          option.value = preset.id;
+          option.textContent = preset.name;
+          els.qPreset.appendChild(option);
+        });
+
+        document.getElementById("btnSearch").addEventListener("click", renderList);
+        document.getElementById("btnReset").addEventListener("click", () => {
+          els.qName.value = "";
+          els.qPreset.value = "";
+          els.qStatus.value = "";
+          renderList();
+        });
+        els.qName.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") renderList();
+        });
+        document.getElementById("btnAddSupplier").addEventListener("click", () => openConfig(null));
+        document.getElementById("btnCloseSupplierModal").addEventListener("click", closeConfig);
+        document.getElementById("btnCancelSupplier").addEventListener("click", closeConfig);
+        document.querySelector('[data-overlay="supplier-config"]').addEventListener("click", closeConfig);
+        document.getElementById("btnChoosePreset").addEventListener("click", showPickerView);
+        document.getElementById("btnBackToForm").addEventListener("click", showFormView);
+        els.presetSearch.addEventListener("input", renderPresetGrid);
+        els.presetGrid.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-preset-id]");
+          if (button) choosePreset(button.dataset.presetId);
+        });
+        document.getElementById("btnToggleKey").addEventListener("click", () => {
+          els.apiKey.type = els.apiKey.type === "password" ? "text" : "password";
+          document.querySelector("#btnToggleKey i").className = els.apiKey.type === "password" ? "fa-regular fa-eye text-muted" : "fa-regular fa-eye-slash text-muted";
+        });
+        document.getElementById("btnFetchModels").addEventListener("click", fetchModels);
+        document.getElementById("btnTestForm").addEventListener("click", testFormConnection);
+        document.getElementById("btnSaveSupplier").addEventListener("click", saveForm);
+
+        [els.supplierName, els.websiteUrl, els.apiKey, els.baseUrl, els.defaultModel, els.remark].forEach((input) => {
+          input.addEventListener("input", () => {
+            formTestPassed = false;
+          });
+        });
+
+        els.list.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-action]");
+          if (!button || button.disabled) return;
+          const id = button.dataset.id;
+          if (button.dataset.action === "activate") activateRow(id);
+          if (button.dataset.action === "edit") openConfig(rows.find((item) => item.id === id));
+          if (button.dataset.action === "copy") copyRow(id);
+          if (button.dataset.action === "test") testRow(id, button);
+          if (button.dataset.action === "refresh-usage") refreshUsage(id, button);
+          if (button.dataset.action === "delete") requestDelete(id);
+        });
+
+        document.getElementById("btnConfirmDelete").addEventListener("click", () => {
+          if (!pendingDeleteId) return;
+          rows = rows.filter((item) => item.id !== pendingDeleteId);
+          pendingDeleteId = null;
+          saveRows();
+          setModalOpen("supplier-delete", false);
+          renderList();
+          toast("success", "删除成功", "供应商配置已删除");
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && document.querySelector('[data-modal="supplier-config"]').dataset.open === "true") closeConfig();
+        });
+
+        renderPresetGrid();
+        renderList();
+      })();
+    </script>
+  </body>
+</html>
